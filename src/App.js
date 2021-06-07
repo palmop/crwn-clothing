@@ -1,88 +1,61 @@
 import React from 'react';
-import { Switch, Route, Link } from 'react-router-dom';
+import { Switch, Route } from 'react-router-dom';
+import { connect } from 'react-redux';
+
 import './App.css';
 
 import HomePage from './pages/homepage/homepage.component';
 import ShopPage from './pages/shop/shop.component';
-import SignInAndSignUp from './pages/sign-in-and-sign-up/sign-in-and-sign-up.component';
+import SignInAndSignUpPage from './pages/sign-in-and-sign-up/sign-in-and-sign-up.component';
 import Header from './components/header/header.component';
 import { auth, createUserProfileDocument } from './firebase/firebase.utils';
-
+import { setCurrentUser } from './redux/user/user.actions';
 
 class App extends React.Component {
-
-  constructor() {
-    super();
-
-    this.state = {
-      currentUser: null
-    }
-  }
-
   unsubscribeFromAuth = null;
 
   componentDidMount() {
-    // this.unsubscribeFromAuth = auth.onAuthStateChanged(user => {
-    //   this.setState( {currentUser: user});
+    const { setCurrentUser } = this.props;
 
-    //   console.log(user);
-    // });
-    this.unsubscribeFromAuth = auth.onAuthStateChanged( async userAuth => {
+    this.unsubscribeFromAuth = auth.onAuthStateChanged(async userAuth => {
       if (userAuth) {
-        // because could be null (ex. signout)
         const userRef = await createUserProfileDocument(userAuth);
 
         userRef.onSnapshot(snapShot => {
-          // onSnapshot ci da i dati relativi al ref
-          // ma non avremo nessun dato fino a quando non lo usiamo
-          // snapShot.data()
-          //console.log(snapShot);
-          //console.log(snapShot.data()) // json con displayName, email, createdAt
-          // nota che da questi 2 console.log vedi che con .data() 
-          // abbiamo i dati creati in firestore, ma l'id del record è
-          // snapShot.id , quindi vanno usati in combinazione
-          // per settare lo stato del componente
-          this.setState(
-            {
-              currentUser: {
-                id: snapShot.id,
-                ...snapShot.data()
-                }
-            }
-            //, 
-            // essendo onSnapshot asincrono, mettiamo qui il log 
-            // per esser sicuri di vedere lo stato quando sono arrivati i dati
-            //() => console.log(this.state) 
-          ) 
-        })
+          setCurrentUser({
+            id: snapShot.id,
+            ...snapShot.data()
+          });
+        });
       }
-      this.setState({ currentUser: userAuth})
-      
+
+      setCurrentUser(userAuth);
     });
   }
 
-  // per far si che il logout abbia effetto
-  // con anche questo willUnmount facciamo si che la 
-  // App segua i cambiamenti di stato che arrivano da google firebase
   componentWillUnmount() {
     this.unsubscribeFromAuth();
   }
 
-  render () {
+  render() {
     return (
       <div>
-        <Header currentUser={this.state.currentUser}/>
+        <Header />
         <Switch>
           <Route exact path='/' component={HomePage} />
           <Route path='/shop' component={ShopPage} />
-          <Route path='/signin' component={SignInAndSignUp} />
+          <Route path='/signin' component={SignInAndSignUpPage} />
         </Switch>
       </div>
     );
   }
-  
 }
 
+const mapDispatchToProps = dispatch => ({
+  setCurrentUser: user => dispatch(setCurrentUser(user))
+});
 
-
-export default App;
+export default connect(
+  null,
+  mapDispatchToProps
+)(App);
